@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>DadBot</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      /* General styles */
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        font-family: "Roboto", sans-serif;
+        background-color: #121b22; /* WhatsApp dark mode background */
+      }
+
+      /* Banner styles */
+      #banner {
+        height: 60px;
+        background-color: #2a2f32; /* Header background */
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        font-weight: bold;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      /* WebChat container */
+      #webchat {
+        height: calc(100% - 60px);
+        width: 100%;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* Chat bubbles */
+      .webchat__bubble {
+        border-radius: 8px;
+        padding: 8px 12px;
+        margin-bottom: 6px;
+        max-width: 75%;
+        font-size: 14px;
+        line-height: 1.4;
+        word-wrap: break-word; /* Ensure text doesn't overflow */
+      }
+
+      /* Bot bubble (left-aligned) */
+      .webchat__bubble--bot {
+        background-color: #202c33; /* Bot message background */
+        color: #d9d9d9; /* Bot text color */
+        align-self: flex-start;
+      }
+
+      /* User bubble (right-aligned) */
+      .webchat__bubble--user {
+        background-color: #056162; /* User message background */
+        color: #e9f4f3; /* User text color */
+        align-self: flex-end;
+      }
+
+      /* Suggested actions */
+      .webchat__suggested-action {
+        background-color: #202c33;
+        border-radius: 20px;
+        padding: 8px 12px;
+        color: #25d366;
+        border: 1px solid #25d366;
+        cursor: pointer;
+        transition: background-color 0.3s;
+      }
+
+      .webchat__suggested-action:hover {
+        background-color: #25d366;
+        color: #202c33;
+      }
+
+      /* Send box styles */
+      .webchat__send-box {
+        background-color: #2a2f32; /* WhatsApp dark mode send box */
+        border: none;
+        color: #d9d9d9;
+        padding: 10px;
+      }
+
+      .webchat__send-box-text-box__input {
+        background-color: #2a2f32;
+        color: white;
+        border: 1px solid #3b4a54;
+        border-radius: 20px;
+        padding: 8px 12px;
+        width: calc(100% - 50px); /* Ensure input box is responsive */
+      }
+
+      .webchat__send-box-button {
+        background-color: transparent;
+        color: #25d366; /* WhatsApp green */
+        font-size: 24px;
+        border: none;
+        cursor: pointer;
+      }
+
+      /* Background */
+      .webchat__basic-transcript {
+        background-color: #121b22; /* WhatsApp background */
+        overflow-y: auto;
+        flex-grow: 1; /* Ensure transcript takes up available space */
+      }
+
+      /* Responsive layout adjustments */
+      @media (max-width: 768px) {
+        #banner {
+          font-size: 16px; /* Smaller font for banner on mobile */
+        }
+
+        .webchat__bubble {
+          max-width: 85%; /* Increase max width for bubbles on mobile */
+          font-size: 16px; /* Larger font for readability on small screens */
+        }
+
+        .webchat__send-box-text-box__input {
+          font-size: 16px; /* Increase font size of input box on mobile */
+        }
+
+        .webchat__send-box-button {
+          font-size: 28px; /* Larger send button on mobile */
+        }
+      }
+
+      @media (max-width: 480px) {
+        .webchat__bubble {
+          font-size: 18px; /* Even larger font for very small screens */
+        }
+
+        .webchat__send-box-text-box__input {
+          font-size: 18px; /* Larger font size for the input box */
+        }
+
+        .webchat__send-box-button {
+          font-size: 32px; /* Larger send button */
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="banner">DadBot</div>
+    <div id="webchat" role="main"></div>
+
+    <script
+      crossorigin="anonymous"
+      src="https://cdn.botframework.com/botframework-webchat/latest/webchat.js"
+    ></script>
+
+    <script>
+      (async function () {
+        const tokenEndpointURL = new URL(
+          "https://e72256a1349ee14b8f1a1b45fb93f0.d6.environment.api.powerplatform.com/powervirtualagents/botsbyschema/cre1d_dadBot/directline/token?api-version=2022-03-01-preview"
+        );
+        const locale = document.documentElement.lang || "en";
+
+        try {
+          const response = await fetch(tokenEndpointURL);
+          if (!response.ok) {
+            throw new Error("Failed to retrieve Direct Line token.");
+          }
+          const { token } = await response.json();
+
+          const directLine = WebChat.createDirectLine({
+            token,
+          });
+
+          // Subscribe to connection status to trigger the startConversation event once connected
+          const subscription = directLine.connectionStatus$.subscribe({
+            next(value) {
+              if (value === 2) {
+                // 2 means the connection is established
+                directLine
+                  .postActivity({
+                    localTimezone:
+                      Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    locale,
+                    name: "startConversation", // Triggering the 'startConversation' topic
+                    type: "event",
+                  })
+                  .subscribe();
+
+                subscription.unsubscribe(); // Unsubscribe after the event is triggered
+              }
+            },
+          });
+
+          const styleOptions = {
+            backgroundColor: "#121b22", // Dark mode background
+            bubbleBackground: "#202c33", // Dark bubble color
+            bubbleFromUserBackground: "#056162", // User bubble color
+            bubbleTextColor: "#d9d9d9", // Text color in bubbles
+            bubbleFromUserTextColor: "#e9f4f3", // User text color
+            bubbleBorderRadius: 8, // Round bubble corners
+            bubbleFromUserBorderRadius: 8, // Round user bubble corners
+            sendBoxBackground: "#2a2f32", // Send box background
+            sendBoxTextColor: "#d9d9d9", // Text color in send box
+            sendBoxButtonColor: "#25d366", // Send button color (like WhatsApp)
+            accent: "#25d366", // Accent color
+            suggestedActionBackground: "#202c33", // Suggested action background
+            suggestedActionTextColor: "#25d366", // Suggested action text color
+            suggestedActionBorderColor: "#25d366", // Suggested action border color
+            suggestedActionBorderRadius: 20, // Suggested action button rounded corners
+          };
+
+          // Render WebChat
+          WebChat.renderWebChat(
+            {
+              directLine,
+              locale,
+              styleOptions,
+            },
+            document.getElementById("webchat")
+          );
+        } catch (error) {
+          console.error("Error initializing Direct Line:", error);
+        }
+      })();
+    </script>
+  </body>
+</html>
